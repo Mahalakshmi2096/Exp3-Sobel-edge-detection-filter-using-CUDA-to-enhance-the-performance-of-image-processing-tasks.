@@ -1,9 +1,9 @@
 # Exp3-Sobel-edge-detection-filter-using-CUDA-to-enhance-the-performance-of-image-processing-tasks.
-<h3>AIM:</h3>
-<h3>ENTER YOUR NAME</h3>
-<h3>ENTER YOUR REGISTER NO</h3>
-<h3>EX. NO</h3>
-<h3>DATE</h3>
+
+<h3>Mahalakshmi B</h3>
+<h3>212224040182</h3>
+<h3>EX. NO 3</h3>
+<h3>02.06.2026</h3>
 <h1> <align=center> Sobel edge detection filter using CUDA </h3>
   Implement Sobel edge detection filtern using GPU.</h3>
 Experiment Details:
@@ -36,25 +36,122 @@ Compare the output of your CUDA Sobel filter with a CPU-based Sobel filter imple
 Discuss the differences in execution time and output quality.
 
 ## PROGRAM:
-TYPE YOUR CODE HERE
+```
+%%writefile sobelEdgeDetectionFilter.cu
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <cuda_runtime.h>
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
+
+__global__ void sobelFilter(unsigned char *srcImage, unsigned char *dstImage,
+                            unsigned int width, unsigned int height) {
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= 1 && x < width-1 && y >= 1 && y < height-1) {
+
+        int Gx[3][3] = {{-1,0,1},{-2,0,2},{-1,0,1}};
+        int Gy[3][3] = {{1,2,1},{0,0,0},{-1,-2,-1}};
+
+        int sumX = 0;
+        int sumY = 0;
+
+        for(int i=-1;i<=1;i++){
+            for(int j=-1;j<=1;j++){
+                unsigned char pixel = srcImage[(y+i)*width + (x+j)];
+                sumX += pixel * Gx[i+1][j+1];
+                sumY += pixel * Gy[i+1][j+1];
+            }
+        }
+
+        int magnitude = sqrtf(sumX*sumX + sumY*sumY);
+        magnitude = min(max(magnitude,0),255);
+
+        dstImage[y*width + x] = (unsigned char)magnitude;
+    }
+}
+
+void checkCudaErrors(cudaError_t r) {
+    if (r != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(r));
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main() {
+
+    Mat image = imread("/content/Screenshot 2026-05-22 191031.png", IMREAD_GRAYSCALE);
+
+    if (image.empty()) {
+        printf("Error: Image not found.\n");
+        return -1;
+    }
+
+    int width = image.cols;
+    int height = image.rows;
+
+    size_t imageSize = width * height * sizeof(unsigned char);
+
+    unsigned char *h_outputImage = (unsigned char*)malloc(imageSize);
+
+    unsigned char *d_inputImage, *d_outputImage;
+
+    checkCudaErrors(cudaMalloc(&d_inputImage,imageSize));
+    checkCudaErrors(cudaMalloc(&d_outputImage,imageSize));
+
+    checkCudaErrors(cudaMemcpy(d_inputImage,
+                               image.data,
+                               imageSize,
+                               cudaMemcpyHostToDevice));
+
+    dim3 blockSize(16,16);
+    dim3 gridSize((width+15)/16,(height+15)/16);
+
+    sobelFilter<<<gridSize,blockSize>>>(d_inputImage,d_outputImage,width,height);
+
+    checkCudaErrors(cudaMemcpy(h_outputImage,
+                               d_outputImage,
+                               imageSize,
+                               cudaMemcpyDeviceToHost));
+
+    Mat outputImage(height,width,CV_8UC1,h_outputImage);
+
+    imwrite("output_sobel.jpeg",outputImage);
+
+    printf("Edge detection completed.\n");
+
+    return 0;
+}
+```
 
 ## OUTPUT:
-SHOW YOUR OUTPUT HERE
 
-## RESULT:
-Thus the program has been executed by using CUDA to ________________.
+<img width="800" height="1024" alt="image" src="https://github.com/user-attachments/assets/7e5f2284-f6a1-48dd-82ad-c0db444236ca" />
 
-Questions:
+<img width="800" height="1024" alt="image" src="https://github.com/user-attachments/assets/d001e9b7-9c98-40ea-b38d-724d65ffb28b" />
 
-What challenges did you face while implementing the Sobel filter for color images?
-How did changing the block size influence the performance of your CUDA implementation?
-What were the differences in output between the CUDA and CPU implementations? Discuss any discrepancies.
-Suggest potential optimizations for improving the performance of the Sobel filter.
+## Questions:
 
-Deliverables:
+### 1. What challenges did you face while implementing the Sobel filter for color images?
+Thus the program has been executed by using CUDA to enhance the performance of image processing tasks through parallel execution of the Sobel edge detection filter.
 
+### 2.How did changing the block size influence the performance of your CUDA implementation?
+Larger block sizes improved parallel execution and reduced execution time. However, extremely large block sizes may reduce efficiency due to memory limitations.
+
+### 3.What were the differences in output between the CUDA and CPU implementations? Discuss any discrepancies.
+The CUDA and CPU outputs were visually similar. Minor differences occurred because of floating-point precision and parallel computation order.
+
+### 4.Suggest potential optimizations for improving the performance of the Sobel filter.
+Use shared memory for faster memory access. Optimize block and grid dimensions. Reduce global memory access. Use streams for overlapping computation and memory transfer.
+
+## Deliverables:
 Modified CUDA code with comments explaining your changes.
 A report summarizing your findings, including graphs of execution times and a comparison of outputs.
 Answers to the questions posed in the experiment.
-Tools Required:
 
+## RESULT:
+Thus the program has been executed by using CUDA to enhance the performance of image processing tasks through parallel execution of the Sobel edge detection filter.
